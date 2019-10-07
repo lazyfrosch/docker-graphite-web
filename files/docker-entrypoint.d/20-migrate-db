@@ -1,0 +1,11 @@
+#!/bin/sh
+
+REQUIRE_USER=graphite
+
+if [ "$(id -un)" != "${REQUIRE_USER}" ]; then
+  echo "This tool should be run as user ${REQUIRE_USER}!" >&2
+  exit 1
+fi
+
+echo "Running Graphite Web database migrations"
+django-admin.py migrate --settings=graphite.settings --run-syncdb

@@ -1,0 +1,14 @@
+#!/bin/sh
+
+set -e
+
+(
+  cd /docker-entrypoint.d
+  for step in *; do
+    [ -x "$step" ] || continue
+    echo "Running entrypoint script $step"
+    "./$step"
+  done
+)
+
+exec "$@"

@@ -1,0 +1,88 @@
+#!/usr/bin/env python
+
+from os import makedirs
+import os.path
+import random
+import re
+from shutil import copyfile
+import string
+
+LOCAL_SETTINGS = '/opt/graphite/conf/local_settings.py'
+LOCAL_SETTINGS_DEFAULT = '/opt/graphite/default/local_settings.py'
+DATA_PATH = '/opt/graphite/storage'
+
+def generate_random(length=64):
+    return ''.join([random.choice(string.ascii_letters + string.digits) for n in range(length)])
+
+def set_setting(content, name, value):
+    pattern = r'^\s*#?\s*' + re.escape(name) + r'\s*=\s*.*'
+    if isinstance(value, str):
+        value = "'%s'" % re.sub(r"'", "\'", value)
+    new_line = "%s = %s" % (name, value)
+
+    match = re.search(pattern, content, re.MULTILINE)
+    if match:
+        line_match = re.escape(match.group(0))
+        content = re.sub(line_match, new_line, content, re.MULTILINE)
+    else:
+        # add to the end of file
+        content += "\n" + new_line + "\n"
+
+    return content
+
+def parse_value(value):
+    string_match = re.match(r'^["\'](.*)["\']$', value)
+    if string_match:
+        return string_match.group(1)
+    if value == 'True':
+        return True
+    if value == 'False':
+        return False
+    try:
+        return int(value)
+    except ValueError:
+        pass
+    try:
+        return float(value)
+    except ValueError:
+        pass
+    raise ValueError('Could not parse: %s' % value)
+
+def get_setting(content, name):
+    pattern = r'^' + re.escape(name) + r"\s*=\s*(.+)\s*$"
+    match = re.search(pattern, content, re.MULTILINE)
+    if match:
+        return parse_value(match.group(1))
+    return None
+
+def update_local_settings():
+    if not os.path.exists(LOCAL_SETTINGS):
+        copyfile(LOCAL_SETTINGS_DEFAULT, LOCAL_SETTINGS)
+
+    with open(LOCAL_SETTINGS, 'r') as _f:
+        settings = _f.read()
+    settings_orig = settings
+
+    if not get_setting(settings, 'SECRET_KEY'):
+        print("Generating a new SECRET_KEY")
+        settings = set_setting(settings, 'SECRET_KEY', generate_random())
+
+    if settings_orig != settings:
+        print("Writing updated config to %s" % LOCAL_SETTINGS)
+        with open(LOCAL_SETTINGS, 'w') as _f:
+            _f.write(settings)
+
+def ensure_path(path):
+    full_path = os.path.join(DATA_PATH, path)
+    if not os.path.exists(full_path):
+        makedirs(full_path)
+
+def ensure_paths():
+    ensure_path('log/webapp')
+    ensure_path('whisper')
+
+def main():
+    ensure_paths()
+    update_local_settings()
+
+main()
