@@ -1,1 +1,21 @@
 #!/bin/sh
+
+set -eo pipefail
+
+AUTH_FILE=/opt/graphite/conf/htpasswd
+
+: "${AUTH_USERNAME:=graphite}"
+: "${AUTH_PASSWORD:=}"
+: "${AUTH_FILE_CLEAN:=true}"
+
+if [ ! -e "$AUTH_FILE" ]; then
+  touch "$AUTH_FILE"
+fi
+
+if [ "$AUTH_FILE_CLEAN" = true ]; then
+  : >"$AUTH_FILE"
+fi
+
+if [ -n "$AUTH_PASSWORD" ]; then
+  echo "$AUTH_PASSWORD" | htpasswd -i "$AUTH_FILE" "$AUTH_USERNAME"
+fi
